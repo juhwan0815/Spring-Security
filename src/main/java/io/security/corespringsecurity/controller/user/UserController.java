@@ -29,9 +29,16 @@ public class UserController {
                          Authentication authentication,
                          Principal principal)
             throws Exception{
+        return "user/mypage";
+    }
+
+    @GetMapping("/order")
+    public String order(){
         userService.order();
         return "user/mypage";
     }
+
+
 
     @GetMapping("/users")
     public String createUser(){

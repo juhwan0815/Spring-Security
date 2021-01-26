@@ -5,6 +5,7 @@ import io.security.corespringsecurity.domain.entity.Resources;
 import io.security.corespringsecurity.domain.entity.Role;
 import io.security.corespringsecurity.repository.RoleRepository;
 import io.security.corespringsecurity.security.metatdatasource.UrlFilterInvocationSecurityMetadataSource;
+import io.security.corespringsecurity.service.MethodSecurityService;
 import io.security.corespringsecurity.service.ResourcesService;
 import io.security.corespringsecurity.service.RoleService;
 import org.modelmapper.ModelMapper;
@@ -35,16 +36,19 @@ public class ResourcesController {
     @Autowired
     private UrlFilterInvocationSecurityMetadataSource filterInvocationSecurityMetadataSource;
 
+    @Autowired
+    private MethodSecurityService methodSecurityService;
+
     @GetMapping("/admin/resources")
-    public String getResources(Model model) throws Exception{
+    public String getResources(Model model) throws Exception {
         List<Resources> resources = resourcesService.getResources();
-        model.addAttribute("resources",resources);
+        model.addAttribute("resources", resources);
 
         return "admin/resource/list";
     }
 
     @PostMapping("/admin/resources")
-    public String createResources(ResourcesDto resourcesDto) throws  Exception{
+    public String createResources(ResourcesDto resourcesDto) throws Exception {
         ModelMapper modelMapper = new ModelMapper();
         Role role = roleRepository.findByRoleName(resourcesDto.getRoleName());
         Set<Role> roles = new HashSet<>();
@@ -54,45 +58,53 @@ public class ResourcesController {
 
         resourcesService.createResources(resources);
 
-        filterInvocationSecurityMetadataSource.reload();
+        if ("url".equals(resourcesDto.getResourceType())) {
+            filterInvocationSecurityMetadataSource.reload();
+        }else{
+            methodSecurityService.addMethodSecured(resourcesDto.getResourceName(),resourcesDto.getRoleName());
+        }
 
         return "redirect:/admin/resources";
     }
 
     @GetMapping("/admin/resources/register")
-    public String viewRole(Model model) throws Exception{
+    public String viewRole(Model model) throws Exception {
         List<Role> roleList = roleService.getRoles();
-        model.addAttribute("roleList",roleList);
+        model.addAttribute("roleList", roleList);
 
         ResourcesDto resourcesDto = new ResourcesDto();
         Set<Role> roleSet = new HashSet<>();
         roleSet.add(new Role());
         resourcesDto.setRoleSet(roleSet);
-        model.addAttribute("resources",resourcesDto);
+        model.addAttribute("resources", resourcesDto);
         return "admin/resource/detail";
     }
 
 
     @GetMapping("/admin/resources/{id}")
-    public String getResources(@PathVariable String id, Model model) throws Exception{
+    public String getResources(@PathVariable String id, Model model) throws Exception {
         List<Role> roleList = roleService.getRoles();
 
-        model.addAttribute("roleList",roleList);
+        model.addAttribute("roleList", roleList);
         Resources resources = resourcesService.getResources(Long.valueOf(id));
 
         ModelMapper modelMapper = new ModelMapper();
-        ResourcesDto resourcesDto = modelMapper.map(resources,ResourcesDto.class);
-        model.addAttribute("resources",resourcesDto);
+        ResourcesDto resourcesDto = modelMapper.map(resources, ResourcesDto.class);
+        model.addAttribute("resources", resourcesDto);
 
         return "admin/resource/detail";
     }
 
     @GetMapping("/admin/resources/delete/{id}")
-    public String removeResources(@PathVariable String id, Model model) throws Exception{
+    public String removeResources(@PathVariable String id, Model model) throws Exception {
         Resources resources = resourcesService.getResources(Long.valueOf(id));
         resourcesService.deleteResources(Long.valueOf(id));
 
-        filterInvocationSecurityMetadataSource.reload();
+        if("url".equals(resources.getResourceType())){
+            filterInvocationSecurityMetadataSource.reload();
+        }else{
+            methodSecurityService.removeMethodSecured(resources.getResourceName());
+        }
 
         return "redirect:/admin/resources";
     }

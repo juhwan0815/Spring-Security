@@ -35,8 +35,23 @@ public class SecurityResourceService {
             // 권한 정보를 계속 담는다.
             resources.getRoleSet().forEach(role -> {
                 configAttributeList.add(new SecurityConfig(role.getRoleName()));
-                result.put(new AntPathRequestMatcher(resources.getResourceName()), configAttributeList);
             });
+            result.put(new AntPathRequestMatcher(resources.getResourceName()), configAttributeList);
+        });
+        return result;
+    }
+
+    public LinkedHashMap<String, List<ConfigAttribute>> getMethodResourceList() {
+        LinkedHashMap<String, List<ConfigAttribute>> result = new LinkedHashMap<>();
+        List<Resources> resourcesList = resourcesRepository.findALlMethodResources();
+        resourcesList.forEach(resources -> {
+            // 리소스 하나당 권한 정보 리스트를 갖는다.
+            List<ConfigAttribute> configAttributeList = new ArrayList<>();
+            // 권한 정보를 계속 담는다.
+            resources.getRoleSet().forEach(role -> {
+                configAttributeList.add(new SecurityConfig(role.getRoleName()));
+            });
+            result.put(resources.getResourceName(), configAttributeList);
         });
         return result;
     }
@@ -47,5 +62,20 @@ public class SecurityResourceService {
                 .map(accessIp -> accessIp.getIpAddress())
                 .collect(Collectors.toList());
         return accessIpList;
+    }
+
+    public LinkedHashMap<String, List<ConfigAttribute>> getPointcutResourceList() {
+        LinkedHashMap<String, List<ConfigAttribute>> result = new LinkedHashMap<>();
+        List<Resources> resourcesList = resourcesRepository.findAllPointcutResources();
+        resourcesList.forEach(resources -> {
+            // 리소스 하나당 권한 정보 리스트를 갖는다.
+            List<ConfigAttribute> configAttributeList = new ArrayList<>();
+            // 권한 정보를 계속 담는다.
+            resources.getRoleSet().forEach(role -> {
+                configAttributeList.add(new SecurityConfig(role.getRoleName()));
+            });
+            result.put(resources.getResourceName(), configAttributeList);
+        });
+        return result;
     }
 }
