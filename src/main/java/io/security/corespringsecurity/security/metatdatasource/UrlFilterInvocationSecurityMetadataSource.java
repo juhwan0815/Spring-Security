@@ -1,5 +1,6 @@
 package io.security.corespringsecurity.security.metatdatasource;
 
+import io.security.corespringsecurity.service.SecurityResourceService;
 import org.springframework.security.access.ConfigAttribute;
 import org.springframework.security.web.FilterInvocation;
 import org.springframework.security.web.access.intercept.FilterInvocationSecurityMetadataSource;
@@ -11,10 +12,15 @@ import java.util.*;
 public class UrlFilterInvocationSecurityMetadataSource implements FilterInvocationSecurityMetadataSource {
 
     // 순서에 맞게하려고 LinkedHashMap 사용
-    private LinkedHashMap<RequestMatcher, List<ConfigAttribute>> requestMap = new LinkedHashMap<>();
+    private LinkedHashMap<RequestMatcher, List<ConfigAttribute>> requestMap;
 
-    public UrlFilterInvocationSecurityMetadataSource(LinkedHashMap<RequestMatcher, List<ConfigAttribute>> resourcesMap) {
+    private SecurityResourceService securityResourceService;
+
+
+    public UrlFilterInvocationSecurityMetadataSource(LinkedHashMap<RequestMatcher, List<ConfigAttribute>> resourcesMap,
+                                                     SecurityResourceService securityResourceService) {
         this.requestMap = resourcesMap;
+        this.securityResourceService = securityResourceService;
     }
 
     @Override
@@ -33,6 +39,19 @@ public class UrlFilterInvocationSecurityMetadataSource implements FilterInvocati
 
         return null;
     }
+
+    public void reload(){
+        LinkedHashMap<RequestMatcher, List<ConfigAttribute>> reloadedMap = securityResourceService.getResourceList();
+        Iterator<Map.Entry<RequestMatcher, List<ConfigAttribute>>> iterator = reloadedMap.entrySet().iterator();
+
+        requestMap.clear();
+
+        while(iterator.hasNext()){
+            Map.Entry<RequestMatcher, List<ConfigAttribute>> entry = iterator.next();
+            requestMap.put(entry.getKey(), entry.getValue());
+        }
+    }
+
 
     @Override
     public Collection<ConfigAttribute> getAllConfigAttributes() {

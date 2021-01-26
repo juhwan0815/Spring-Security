@@ -8,6 +8,7 @@ import io.security.corespringsecurity.repository.UserRepository;
 import io.security.corespringsecurity.service.UserService;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -86,7 +87,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Secured("ROLE_MANAGER")
     public void order() {
-
+        System.out.println("order");
     }
 }

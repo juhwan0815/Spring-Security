@@ -2,12 +2,13 @@ package io.security.corespringsecurity.security.config;
 
 import io.security.corespringsecurity.security.common.FormAuthenticationDetailsSource;
 import io.security.corespringsecurity.security.factory.UrlResourcesMapFactoryBean;
+import io.security.corespringsecurity.security.filter.PermitAllFilter;
 import io.security.corespringsecurity.security.handler.CustomAccessDeniedHandler;
 import io.security.corespringsecurity.security.metatdatasource.UrlFilterInvocationSecurityMetadataSource;
 import io.security.corespringsecurity.security.provider.CustomAuthenticationProvider;
+import io.security.corespringsecurity.security.voter.IpAddressVoter;
 import io.security.corespringsecurity.service.SecurityResourceService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
@@ -15,11 +16,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.access.AccessDecisionManager;
 import org.springframework.security.access.AccessDecisionVoter;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.access.vote.AffirmativeBased;
-import org.springframework.security.access.vote.RoleVoter;
+import org.springframework.security.access.vote.RoleHierarchyVoter;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -33,11 +36,12 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableGlobalMethodSecurity(prePostEnabled = true,securedEnabled = true) // 스프링 시큐리티 메소드 보안 활성화
 @Slf4j
 @Order(1)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
@@ -53,6 +57,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Autowired
     private SecurityResourceService securityResourceService;
+
+    private String[] permitAllResources = {"/","login","/user/login/**"};
 
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
@@ -111,12 +117,13 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    public FilterSecurityInterceptor customFilterSecurityInterceptor() throws Exception {
-        FilterSecurityInterceptor filterSecurityInterceptor = new FilterSecurityInterceptor();
-        filterSecurityInterceptor.setSecurityMetadataSource(urlFilterInvocationSecurityMetadataSource());
-        filterSecurityInterceptor.setAccessDecisionManager(affirmativeBased());
-        filterSecurityInterceptor.setAuthenticationManager(authenticationManagerBean());
-        return filterSecurityInterceptor;
+    public PermitAllFilter customFilterSecurityInterceptor() throws Exception {
+
+        PermitAllFilter permitAllFilter = new PermitAllFilter(permitAllResources);
+        permitAllFilter.setSecurityMetadataSource(urlFilterInvocationSecurityMetadataSource());
+        permitAllFilter.setAccessDecisionManager(affirmativeBased());
+        permitAllFilter.setAuthenticationManager(authenticationManagerBean());
+        return permitAllFilter;
     }
 
     private AccessDecisionManager affirmativeBased() {
@@ -125,12 +132,28 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     private List<AccessDecisionVoter<?>> getAccessDecisionVoters() {
-        return Arrays.asList(new RoleVoter());
+        List<AccessDecisionVoter<? extends Object>> accessDecisionVoters = new ArrayList<>();
+        accessDecisionVoters.add(new IpAddressVoter(securityResourceService)); // 가장 먼저와야 한다.
+        accessDecisionVoters.add(roleVoter());
+
+        return accessDecisionVoters;
+    }
+
+    @Bean
+    public AccessDecisionVoter<? extends Object> roleVoter() {
+        RoleHierarchyVoter roleHierarchyVoter = new RoleHierarchyVoter(roleHierarchy());
+        return roleHierarchyVoter;
+    }
+
+    @Bean
+    public RoleHierarchyImpl roleHierarchy() {
+        RoleHierarchyImpl roleHierarchy = new RoleHierarchyImpl();
+        return roleHierarchy;
     }
 
     @Bean
     public FilterInvocationSecurityMetadataSource urlFilterInvocationSecurityMetadataSource() throws Exception {
-        return new UrlFilterInvocationSecurityMetadataSource(urlResourcesMapFactoryBean().getObject());
+        return new UrlFilterInvocationSecurityMetadataSource(urlResourcesMapFactoryBean().getObject(),securityResourceService);
     }
 
     private UrlResourcesMapFactoryBean urlResourcesMapFactoryBean() {
